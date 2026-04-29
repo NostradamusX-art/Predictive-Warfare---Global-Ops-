@@ -69,14 +69,20 @@ export const fetchRealTimeIntel = async (lang: Language): Promise<IntelReport[]>
     if (!text) return [];
 
     try {
-      return JSON.parse(text);
+      const data = JSON.parse(text);
+      return Array.isArray(data) ? data : [];
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError, "Text was:", text);
       const jsonMatch = text.match(/\[.*\]/s);
       if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+          const matchedData = JSON.parse(jsonMatch[0]);
+          return Array.isArray(matchedData) ? matchedData : [];
+        } catch (innerError) {
+          console.error("Inner JSON Parse Error:", innerError);
+        }
       }
-      throw parseError;
+      return [];
     }
   } catch (error) {
     console.error("Failed to fetch real-time intel:", error);

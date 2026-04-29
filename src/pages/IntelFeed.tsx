@@ -81,14 +81,14 @@ export const IntelFeed: React.FC = () => {
         </div>
       </header>
 
-      <div className="flex-1 min-h-0 flex flex-col md:flex-row gap-6">
+      <div className="flex-1 min-h-[500px] flex flex-col md:flex-row gap-6">
         {/* Tactical Map Container */}
-        <div className="md:w-3/5 h-full relative border border-zinc-800 rounded-3xl overflow-hidden bg-zinc-950">
+        <div className="flex-[3] min-h-[400px] relative border border-zinc-800 rounded-3xl overflow-hidden bg-zinc-950">
           <WorldMap reports={reports} />
         </div>
 
         {/* Intelligence Feed Container */}
-        <aside className="md:w-2/5 flex flex-col gap-4 min-h-0">
+        <aside className="flex-[2] flex flex-col gap-4 min-h-[400px]">
           <div className="flex items-center justify-between px-2">
             <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-[0.3em]">
                {language === 'pt' ? 'Fluxo de Dados' : 'Live Data Stream'}

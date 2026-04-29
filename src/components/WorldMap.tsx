@@ -6,19 +6,44 @@ import {
   Marker,
   ZoomableGroup
 } from "@vnedyalk0v/react19-simple-maps";
+import "d3-transition";
 import { IntelReport } from "../services/intelService";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ShieldAlert, Globe, Plus, Minus } from "lucide-react";
 
-const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
+const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json";
 
 interface WorldMapProps {
   reports: IntelReport[];
 }
 
 export const WorldMap: React.FC<WorldMapProps> = ({ reports }) => {
+  console.log("WorldMap rendering with reports:", reports);
   const [selectedMarker, setSelectedMarker] = useState<IntelReport | null>(null);
   const [position, setPosition] = useState({ coordinates: [0, 20] as [number, number], zoom: 1 });
+  const [loadError, setLoadError] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [geoData, setGeoData] = useState<any>(null);
+
+  React.useEffect(() => {
+    setLoading(true);
+    fetch(geoUrl)
+      .then(res => {
+        if (!res.ok) throw new Error("Failed to load map");
+        return res.json();
+      })
+      .then(data => {
+        setGeoData(data);
+        setLoadError(false);
+      })
+      .catch(err => {
+        console.error("Map Load Error:", err);
+        setLoadError(true);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, []);
 
   const getThreatColor = (level: string) => {
     switch (level) {
@@ -44,14 +69,14 @@ export const WorldMap: React.FC<WorldMapProps> = ({ reports }) => {
   };
 
   return (
-    <div className="w-full h-full bg-zinc-950 relative group min-h-[300px]">
+    <div className="w-full h-full bg-zinc-950 relative group min-h-[300px] flex items-center justify-center">
       {/* HUD Elements */}
       <div className="absolute top-4 left-6 z-10 space-y-2 pointer-events-none">
         <p className="text-[10px] font-mono text-emerald-500 uppercase tracking-widest bg-zinc-900/90 px-2 py-1 rounded border border-emerald-500/20 backdrop-blur-sm shadow-[0_0_15px_rgba(16,185,129,0.1)]">
           Geospatial Tactical Overlay v2.1
         </p>
         <div className="flex gap-2">
-           {['SAT-LINK: ACTIVE', 'LAT/LNG: ' + position.coordinates[0].toFixed(2) + '/' + position.coordinates[1].toFixed(2)].map(t => (
+           {['SAT-LINK: ACTIVE', 'LAT/LNG: ' + (position.coordinates?.[0] || 0).toFixed(2) + '/' + (position.coordinates?.[1] || 0).toFixed(2)].map(t => (
              <span key={t} className="text-[8px] font-mono text-zinc-600 bg-zinc-900/50 px-1.5 py-0.5 rounded border border-zinc-800 uppercase">
                {t}
              </span>
@@ -63,6 +88,23 @@ export const WorldMap: React.FC<WorldMapProps> = ({ reports }) => {
       <div className="absolute inset-0 pointer-events-none opacity-[0.03] overflow-hidden">
         <div className="w-full h-full bg-[linear-gradient(to_right,#808080_1px,transparent_1px),linear-gradient(to_bottom,#808080_1px,transparent_1px)] bg-[size:40px_40px]" />
       </div>
+
+      {/* Error State Overlay */}
+      {loadError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 z-30 backdrop-blur-sm">
+           <ShieldAlert className="w-12 h-12 text-red-500 mb-4 opacity-50" />
+           <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest">Failed to load geography data</p>
+           <p className="text-[9px] font-mono text-zinc-700 mt-2 uppercase">Attempting restricted access protocol...</p>
+        </div>
+      )}
+
+      {/* Loading State Overlay */}
+      {loading && !loadError && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/80 z-30 backdrop-blur-sm">
+           <Globe className="w-12 h-12 text-emerald-500 mb-4 opacity-50 animate-spin" />
+           <p className="text-xs font-mono text-zinc-500 uppercase tracking-widest animate-pulse">Syncing Global Topology...</p>
+        </div>
+      )}
 
       {/* Zoom Controls */}
       <div className="absolute bottom-6 right-6 z-20 flex flex-col gap-2">
@@ -82,8 +124,10 @@ export const WorldMap: React.FC<WorldMapProps> = ({ reports }) => {
       
       <ComposableMap
         projectionConfig={{
-          scale: 200,
+          scale: 160,
         }}
+        width={800}
+        height={450}
         className="w-full h-full"
       >
         <ZoomableGroup 
@@ -91,63 +135,71 @@ export const WorldMap: React.FC<WorldMapProps> = ({ reports }) => {
           center={position.coordinates}
           onMoveEnd={handleMoveEnd}
         >
-          <Geographies geography={geoUrl}>
-            {({ geographies }) =>
-              geographies.map((geo) => (
-                <Geography
-                  key={geo.rsmKey}
-                  geography={geo}
-                  fill="#09090b"
-                  stroke="#18181b"
-                  strokeWidth={0.5 / position.zoom}
-                  style={{
-                    default: { outline: "none" },
-                    hover: { outline: "none", fill: "#111114" },
-                    pressed: { outline: "none" },
-                  }}
-                />
-              ))
-            }
-          </Geographies>
-          
-          {reports.map((report, i) => (
-            <Marker key={i} coordinates={[report.lng, report.lat]}>
-              <g 
-                className="cursor-pointer"
-                onClick={() => {
-                  setSelectedMarker(report);
-                  setPosition({ coordinates: [report.lng, report.lat], zoom: 4 });
-                }}
-              >
-                <circle
-                  r={selectedMarker?.title === report.title ? 12 / position.zoom : 8 / position.zoom}
-                  fill={report.threatLevel === 'critical' ? '#ef4444' : '#10b981'}
-                  className="animate-ping opacity-20 transition-all"
-                />
-                <circle
-                  r={3 / position.zoom}
-                  fill={report.threatLevel === 'critical' ? '#ef4444' : '#10b981'}
-                />
-                {position.zoom > 2 && (
-                  <text
-                    textAnchor="middle"
-                    y={-10 / position.zoom}
+          {geoData && (
+            <Geographies 
+              geography={geoData}
+            >
+              {({ geographies }) => {
+                if (!geographies || geographies.length === 0) return null;
+                return geographies.map((geo) => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    fill="#09090b"
+                    stroke="#18181b"
+                    strokeWidth={0.5 / position.zoom}
                     style={{
-                      fontFamily: "JetBrains Mono",
-                      fontSize: `${6 / position.zoom}px`,
-                      fontWeight: "bold",
-                      fill: report.threatLevel === 'critical' ? '#ef4444' : '#10b981',
-                      textTransform: "uppercase",
-                      pointerEvents: "none",
-                      filter: "drop-shadow(0 0 2px black)"
+                      default: { outline: "none" },
+                      hover: { outline: "none", fill: "#111114" },
+                      pressed: { outline: "none" },
                     }}
-                  >
-                    {report.region}
-                  </text>
-                )}
-              </g>
-            </Marker>
-          ))}
+                  />
+                ));
+              }}
+            </Geographies>
+          )}
+          
+          {Array.isArray(reports) && reports.map((report, i) => {
+            if (!report || typeof report.lng !== 'number' || typeof report.lat !== 'number') return null;
+            return (
+              <Marker key={`${report.title}-${i}`} coordinates={[report.lng, report.lat]}>
+                <g 
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelectedMarker(report);
+                    setPosition({ coordinates: [report.lng, report.lat], zoom: 4 });
+                  }}
+                >
+                  <circle
+                    r={selectedMarker?.title === report.title ? 12 / position.zoom : 8 / position.zoom}
+                    fill={report.threatLevel === 'critical' ? '#ef4444' : '#10b981'}
+                    className="animate-ping opacity-20 transition-all"
+                  />
+                  <circle
+                    r={3 / position.zoom}
+                    fill={report.threatLevel === 'critical' ? '#ef4444' : '#10b981'}
+                  />
+                  {position.zoom > 2 && (
+                    <text
+                      textAnchor="middle"
+                      y={-10 / position.zoom}
+                      style={{
+                        fontFamily: "JetBrains Mono",
+                        fontSize: `${Math.max(4, 6 / position.zoom)}px`,
+                        fontWeight: "bold",
+                        fill: report.threatLevel === 'critical' ? '#ef4444' : '#10b981',
+                        textTransform: "uppercase",
+                        pointerEvents: "none",
+                        filter: "drop-shadow(0 0 2px black)"
+                      }}
+                    >
+                      {report.region}
+                    </text>
+                  )}
+                </g>
+              </Marker>
+            );
+          })}
         </ZoomableGroup>
       </ComposableMap>
 
