@@ -141,9 +141,9 @@ export const WorldMap: React.FC<WorldMapProps> = ({ reports }) => {
             >
               {({ geographies }) => {
                 if (!geographies || geographies.length === 0) return null;
-                return geographies.map((geo) => (
+                return geographies.map((geo, i) => (
                   <Geography
-                    key={geo.rsmKey}
+                    key={geo.rsmKey || `geo-${i}`}
                     geography={geo}
                     fill="#09090b"
                     stroke="#18181b"
