@@ -5,7 +5,7 @@ import {
   Geography,
   Marker,
   ZoomableGroup
-} from "react-simple-maps";
+} from "@vnedyalk0v/react19-simple-maps";
 import { IntelReport } from "../services/intelService";
 import { motion, AnimatePresence } from "motion/react";
 import { X, ShieldAlert, Globe, Plus, Minus } from "lucide-react";
